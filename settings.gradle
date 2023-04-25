@@ -1,0 +1,6 @@
+rootProject.name = 'open-platform-sdk'
+include 'sdk-core'
+include 'sdk-auth'
+include 'sdk-api'
+include 'sdk-web-example'
+

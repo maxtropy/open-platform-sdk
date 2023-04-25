@@ -1,0 +1,31 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+version "${libVersion}" as Object
+
+jar {
+    enabled = true
+}
+
+publishing {
+    publications {
+        utils(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+
+
+dependencies {
+//    api project(':central-transmit-context')
+    compileOnly 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'org.springframework.boot:spring-boot-starter'
+    compileOnly 'ch.qos.logback:logback-classic'
+    implementation 'com.auth0:java-jwt:4.4.0'
+    implementation 'org.apache.httpcomponents:httpclient:4.5.6'
+    implementation 'org.apache.httpcomponents:httpmime:4.5.6'
+    annotationProcessor 'org.projectlombok:lombok:1.18.22'
+}

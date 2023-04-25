@@ -1,0 +1,28 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+version "${libVersion}" as Object
+
+jar {
+    enabled = true
+}
+
+publishing {
+    publications {
+        utils(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+
+
+dependencies {
+    implementation project(':sdk-core')
+    compileOnly 'org.springframework.boot:spring-boot-starter-web'
+    compileOnly 'org.springframework.boot:spring-boot-starter'
+    compileOnly 'org.springframework.boot:spring-boot-starter-aop:2.5.2'
+    annotationProcessor 'org.projectlombok:lombok:1.18.22'
+}

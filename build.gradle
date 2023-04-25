@@ -1,0 +1,265 @@
+plugins {
+    id 'idea'
+    id 'org.springframework.boot' version '2.5.2'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id 'com.palantir.docker' version '0.25.0' apply false
+}
+
+def maxtropy_artifactory_username = System.getenv('ARTIFACTORY_USR') ?: maxtropy_artifactory_username
+def maxtropy_artifactory_password = System.getenv('ARTIFACTORY_PSW') ?: maxtropy_artifactory_password
+
+def maxtropy_nexus_username = System.getenv('NEXUS_USR') ?: maxtropy_nexus_username
+def maxtropy_nexus_password = System.getenv('NEXUS_PSW') ?: maxtropy_nexus_password
+
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springBootVersion', '2.5.2')
+    set('springVersion', '5.2.10.RELEASE')
+    set('dockerRegistryUrl', 'registry.cn-shanghai.aliyuncs.com/jsmaxtropy')
+}
+
+repositories {
+    maven {
+        url "https://maven.aliyun.com/repository/central"
+    }
+    mavenCentral()
+}
+
+subprojects {
+
+    group 'com.maxtropy.arch.open-platform'
+
+    repositories {
+        mavenLocal()
+        maven {
+            url "https://maven.aliyun.com/repository/public"
+        }
+        mavenCentral()
+        maven {
+            url "https://artifactory.maxtropy.com/artifactory/libs-snapshot-local"
+            credentials {
+                username "${maxtropy_artifactory_username}"
+                password "${maxtropy_artifactory_password}"
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+            mavenContent {
+                snapshotsOnly()
+            }
+        }
+        maven {
+            url "https://artifactory.maxtropy.com/artifactory/libs-release-local"
+            credentials {
+                username "${maxtropy_artifactory_username}"
+                password "${maxtropy_artifactory_password}"
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+            mavenContent {
+                releasesOnly()
+            }
+        }
+
+        maven {
+            url "https://nexus.maxtropy.cloud/repository/maven-snapshots"
+            credentials {
+                username "${maxtropy_nexus_username}"
+                password "${maxtropy_nexus_password}"
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+            mavenContent {
+                snapshotsOnly()
+            }
+        }
+        maven {
+            url "https://nexus.maxtropy.cloud/repository/maven-releases"
+            credentials {
+                username "${maxtropy_nexus_username}"
+                password "${maxtropy_nexus_password}"
+            }
+            authentication {
+                basic(BasicAuthentication)
+            }
+            mavenContent {
+                releasesOnly()
+            }
+        }
+    }
+
+    afterEvaluate { Project project ->
+//        if (project.plugins.hasPlugin("maven-publish")) {
+//            if (project.plugins.hasPlugin("java")) {
+//                java {
+//                    withSourcesJar()
+//                }
+//            }
+//
+//            publishing {
+//                repositories {
+//                    maven {
+//                        def releasePath = "maven-releases"
+//                        def snapshotsPath = "maven-snapshots"
+//                        name "maxtropy"
+//                        url = "https://nexus.maxtropy.cloud/repository/" +(version.endsWith('SNAPSHOT') ? snapshotsPath : releasePath)
+//                        credentials {
+//                            username "${maxtropy_nexus_username}"
+//                            password "${maxtropy_nexus_password}"
+//                        }
+//                        authentication {
+//                            basic(BasicAuthentication)
+//                        }
+//                    }
+//                }
+//            }
+//        }
+    }
+}
+
+subprojects { subproject ->
+
+    apply plugin: 'idea'
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    apply from: "${rootDir}/gradle/version.gradle"
+
+    tasks.withType(JavaCompile) {
+        options.encoding = "UTF-8"
+        options.incremental = false
+    }
+
+    configurations {
+        compileOnly {
+            extendsFrom annotationProcessor
+        }
+    }
+
+    test {
+        useJUnitPlatform()
+        systemProperty 'applicationName', System.getProperty('applicationName')
+    }
+
+    dependencyManagement {
+
+        dependencies {
+            // 公司内部包
+
+
+
+
+            dependency 'org.springframework.boot:spring-boot-starter-web:2.5.2'
+            dependency 'org.springframework.boot:spring-boot-starter:2.5.2'
+
+
+            // mapstruct
+            dependency 'org.mapstruct:mapstruct:1.4.2.Final'
+            dependency 'org.mapstruct:mapstruct-processor:1.4.2.Final'
+            dependency 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
+            // commons
+            dependency 'org.springframework.boot:spring-boot-starter-validation:2.5.2'
+            dependency 'org.apache.commons:commons-lang3:3.10'
+            dependency 'org.apache.commons:commons-collections4:4.4'
+            dependency 'com.alibaba:easyexcel:3.1.1'
+            dependency 'cn.hutool:hutool-core:5.7.21'
+            dependency 'cn.hutool:hutool-jwt:5.7.21'
+            dependency 'io.vavr:vavr:0.10.4'
+            dependency 'com.google.guava:guava:31.0.1-jre'
+            dependency 'org.springframework:spring-beans:5.3.15'
+            dependency 'org.jetbrains:annotations:23.0.0'
+
+            dependency 'org.springframework:spring-test:5.3.5'
+            // logback-encoder
+            dependency 'net.logstash.logback:logstash-logback-encoder:4.11'
+
+            dependency 'ch.qos.logback:logback-classic:1.1.7'
+
+
+        }
+    }
+
+    afterEvaluate { Project project ->
+        if (pluginManager.hasPlugin("application")) {
+            task archiveExtDeps(type: Tar) { task ->
+                dependsOn(jar, task.project.configurations.runtimeClasspath)
+
+                def files = task.project.configurations.runtimeClasspath.fileCollection { dep ->
+                    dep instanceof ExternalDependency
+                }
+
+                from files.sort()
+
+                archiveFileName = "dep-libs.tar"
+                destinationDirectory = file("$buildDir/docker/")
+            }
+
+            task archiveModuleDeps(type: Tar) { task ->
+                dependsOn(jar, task.project.configurations.runtimeClasspath)
+
+                def files = task.project.configurations.runtimeClasspath.fileCollection { dep ->
+                    dep instanceof ProjectDependency
+                }
+
+                from files.sort()
+
+                archiveFileName = "module-libs.tar"
+                destinationDirectory = file("$buildDir/docker")
+            }
+
+            task prepare(type: Copy) { task ->
+                dependsOn(archiveExtDeps, archiveModuleDeps, startScripts)
+
+                from "$buildDir/scripts/", jar.outputs
+                into "$buildDir/docker/"
+            }
+
+            docker {
+                def customTag = System.getenv('DOCKER_IMAGE_TAG')
+                String version = customTag?.trim()
+                if (!version) {
+                    def refPattern = ~/^ref:\s*(.+)$/
+                    def gitHead = new File(rootProject.getRootDir().path + File.separator + '.git' + File.separator +
+                            'HEAD')
+                            .text.trim()
+                    def refMatcher = gitHead =~ refPattern
+                    if (refMatcher.find()) {
+                        def refPath = refMatcher.group(1).replace('/' as char, File.separatorChar)
+                        gitHead = new File(rootProject.getRootDir().path + File.separator + '.git' + File.separator +
+                                refPath).text.trim()
+                    }
+                    version = project.version + "-" + gitHead.substring(0, 8)
+                }
+                name "${dockerRegistryUrl}/${project.name}:${version}"
+                dockerfile file('Dockerfile.local')
+                buildArgs([MODULE: project.name])
+            }
+
+            dockerPrepare {
+                dependsOn(prepare)
+            }
+        }
+
+        if (pluginManager.hasPlugin('org.springframework.boot') && pluginManager.hasPlugin('com.palantir.git-version')) {
+            def details = versionDetails()
+
+            springBoot {
+                buildInfo {
+                    properties {
+                        additional = [
+                                'COMMIT_HASH' : details.gitHashFull ?: '',
+                                'BRANCH'      : details.branchName ?: '',
+                                'IS_CLEAN_TAG': details.isCleanTag ?: ''
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}

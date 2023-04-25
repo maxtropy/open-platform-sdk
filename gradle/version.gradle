@@ -1,0 +1,4 @@
+ext {
+    libVersion = '1.2.1'
+    serviceVersion = '1.0.0-SNAPSHOT'
+}
